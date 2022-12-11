@@ -2,3 +2,4 @@ log/*
 complexity.html
 .idea
 __pychache__
+.DS_Store
