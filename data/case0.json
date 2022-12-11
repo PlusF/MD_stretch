@@ -1,0 +1,16 @@
+{
+    "in_file": "./data/Al_fcc_27.in",
+    "out_file_traj": "./log/traj_27.xyz",
+    "out_file_energy": "./log/energy_27.out",
+    "out_file_cell": "./log/cell_27.out",
+    "restart_file": "./log/restart_27.tmp",
+    "restart": false,
+    "dt": 1e-15, 
+    "cutoff": 6e-10,
+    "n_loop": 1000, 
+    "interval": 10, 
+    "box_size": [12.15e-10, 12.15e-10, 12.15e-10], 
+    "periodic": [true, true, true],
+    "relax": false,
+    "stretch_eps": [0, 0, 0]
+}
