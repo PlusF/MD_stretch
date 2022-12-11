@@ -1,4 +1,4 @@
-./log/*
-./complexity.html
+log/*
+complexity.html
 .idea
 __pychache__
