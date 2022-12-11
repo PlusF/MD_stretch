@@ -1,9 +1,13 @@
+import os
 import json
 import numpy as np
 
 
 class CaseData:
     def __init__(self, filename):
+        if not os.path.exists('./log'):
+            os.mkdir('./log')
+
         with open(filename, 'r') as f:
             case_dict = json.load(f)
 
