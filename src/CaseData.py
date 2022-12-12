@@ -41,6 +41,7 @@ class CaseData:
 
             self.set_box_size(np.array(case_dict["box_size"]).astype(float))
 
+        self.n_cell_ = np.array(case_dict["n_cell"])
         self.relax_ = case_dict["relax"]  # structure relaxation
         self.stretch_eps_ = np.array(case_dict["stretch_eps"]).astype(float)  # distortion of stretch per step
         self.need_stretch_ = True if np.linalg.norm(self.stretch_eps_) > 0 else False

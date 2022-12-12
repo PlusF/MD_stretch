@@ -7,9 +7,9 @@
     "restart": true,
     "dt": 1e-15, 
     "cutoff": 7e-10,
-    "n_loop": 30000, 
+    "n_loop": 10000,
     "interval": 10, 
-    "box_size": [8.1e-10, 8.1e-10, 8.1e-10], 
+    "box_size": [8.1e-10, 8.1e-10, 8.1e-10],
     "periodic": [true, false, false],
     "relax": true,
     "stretch_eps": [0.01, 0, 0]

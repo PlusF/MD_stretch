@@ -6,15 +6,28 @@ import numpy as np
 
 
 class Cell:
-    def __init__(self, casedata: CaseData, atom_list):
+    def __init__(self, casedata: CaseData):
         self.casedata_ = casedata
         self.d1_ = np.array([0, 0, 0])
-        self.d2_ = np.array(casedata.box_size_)
-        self.atom_list_ = atom_list
-        self.n_atoms_ = len(self.atom_list_)
+        self.d2_ = np.array([0, 0, 0])
+        self.atom_list_ = []
+        self.n_atoms_ = 0
         self.up_ = self.uk_ = 0
 
         self.params_ = Params()
+
+    def contains(self, a: Atom):
+        if np.all((self.d1_ <= a.r_) | (a.r_ < self.d2_)):
+            return True
+        return False
+
+    def add_atom(self, a: Atom):
+        self.atom_list_.append(a)
+        self.n_atoms_ += 1
+
+    def remove_atom(self, a: Atom):
+        self.atom_list_.remove(a)
+        self.n_atoms_ -= 1
 
     def clear_force(self):
         for atom in self.atom_list_:

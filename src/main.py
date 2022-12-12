@@ -3,7 +3,7 @@ from Driver import Driver
 
 
 def main():
-    casedata = CaseData('./data/case1.json')
+    casedata = CaseData('./data/case2.json')
     dr = Driver(casedata)
     dr.run()
 

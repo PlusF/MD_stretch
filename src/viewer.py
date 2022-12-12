@@ -50,9 +50,9 @@ def load_cell(filename):
 
 
 def main():
-    step_list, up_list, uk_list, temperature_list = load_energy('./log/energy_8.out')
+    step_list, up_list, uk_list, temperature_list = load_energy('./log/energy_16.out')
 
-    box_sizes = load_cell('./log/cell_8.out')
+    box_sizes = load_cell('./log/cell_16.out')
     lx_list = box_sizes[:, 0]
 
     # sigma_list, epslion_list = calc_stress_strain(up_list, lx_list)
