@@ -23,6 +23,7 @@ class CaseData:
         self.n_loop_ = case_dict["n_loop"]  # number of loop iterations
         self.interval_ = case_dict["interval"]  # interval between output
         self.periodic_ = case_dict["periodic"]  # B.C x, y, z
+        self.n_cell_ = np.array(case_dict["n_cell"])
 
         self.margin_ = self.offsets_ = None
         if self.restart_:
@@ -32,7 +33,7 @@ class CaseData:
             self.set_box_size(box_size)
         else:
             # reset the output file
-            with open(self.out_file_traj_, 'w') as f:
+            with open(self.out_file_traj_, 'w'):
                 pass
             with open(self.out_file_energy_, 'w') as f:
                 f.write('#step up uk temperature\n')
@@ -41,7 +42,6 @@ class CaseData:
 
             self.set_box_size(np.array(case_dict["box_size"]).astype(float))
 
-        self.n_cell_ = np.array(case_dict["n_cell"])
         self.relax_ = case_dict["relax"]  # structure relaxation
         self.stretch_eps_ = np.array(case_dict["stretch_eps"]).astype(float)  # distortion of stretch per step
         self.need_stretch_ = True if np.linalg.norm(self.stretch_eps_) > 0 else False
@@ -49,7 +49,7 @@ class CaseData:
 
     def set_box_size(self, box_size):
         self.box_size_ = np.array(box_size)
-        self.margin_ = self.box_size_ * 0.05
+        self.margin_ = self.box_size_ / self.n_cell_ * 0.05
         # periodic B.C.を計算する際に適用するオフセット
         self.set_offsets()
 
@@ -62,25 +62,11 @@ class CaseData:
         # 指定された境界条件に応じて、力を計算する際のオフセットを設定 (periodicがFalseの軸が0であるようなオフセット)
         self.offsets_ = combi[np.sum(self.periodic_ | ((1 - np.abs(combi)).astype(bool)), axis=1) == 3]
 
-        # self.offsets_ = []
-        # if self.periodic_[0]:
-        #     self.offsets_.extend(combi[(combi[:, 1]==0) & (combi[:, 2]==0)])
-        # if self.periodic_[1]:
-        #     self.offsets_.extend(combi[(combi[:, 2]==0) & (combi[:, 0]==0)])
-        # if self.periodic_[2]:
-        #     self.offsets_.extend(combi[(combi[:, 0]==0) & (combi[:, 1]==0)])
-
-        # if self.periodic_[0] and self.periodic_[1]:
-        #     self.offsets_.extend(combi[(combi[:, 0]!=0) & (combi[:, 1]!=0) & (combi[:, 2]==0)])
-        # if self.periodic_[1] and self.periodic_[2]:
-        #     self.offsets_.extend(combi[(combi[:, 1]!=0) & (combi[:, 2]!=0) & (combi[:, 0]==0)])
-        # if self.periodic_[2] and self.periodic_[0]:
-        #     self.offsets_.extend(combi[(combi[:, 2]!=0) & (combi[:, 0]!=0) & (combi[:, 1]==0)])
-
-        # if self.periodic_[0] and self.periodic_[1] and self.periodic_[2]:
-        #     self.offsets_.extend(combi[(combi[:, 0]!=0) & (combi[:, 1]!=0) & (combi[:, 2]!=0)])
-
         self.offsets_ *= self.box_size_
+
+    def check_cell_size_and_cutoff(self):
+        # TODO: IMPLEMENT ME
+        pass
 
 
 def test_offsets(casedata: CaseData):

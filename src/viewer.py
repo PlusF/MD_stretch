@@ -1,3 +1,4 @@
+import json
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -20,15 +21,17 @@ def load_energy(filename):
     return np.array(step_list), np.array(up_list), np.array(uk_list), np.array(temperature_list)
 
 
-def calc_stress_strain(up_list, lx_list):
-    stride = 50
+def calc_stress_strain(up_list, box_size_list):
+    stride = 10
     sigma_list = []
     epslion_list = []
-    for i, lx in enumerate(lx_list):
-        if i < stride or i >= len(up_list) - stride:
-            continue
-        sigma = (up_list[i + stride] - up_list[i - stride]) / (2 * stride)
-        epslion = (lx - lx_list[0]) / lx_list[0]
+    for i, box_size in enumerate(box_size_list):
+        if i >= len(up_list) - stride:
+            break
+        volume = box_size[0] * box_size[1] * box_size[2] * 1e-30
+        # stress = strain derivative of energy divided by volume
+        sigma = (up_list[i + stride] - up_list[i]) / (2 * stride) / volume
+        epslion = (box_size[0] - box_size_list[0][0]) / box_size_list[0][0]
         sigma_list.append(sigma)
         epslion_list.append(epslion)
 
@@ -50,14 +53,17 @@ def load_cell(filename):
 
 
 def main():
-    step_list, up_list, uk_list, temperature_list = load_energy('./log/energy_16.out')
+    casedata_file = './data/case2.json'
 
-    box_sizes = load_cell('./log/cell_16.out')
-    lx_list = box_sizes[:, 0]
+    with open(casedata_file, 'r') as f:
+        case = json.load(f)
 
-    # sigma_list, epslion_list = calc_stress_strain(up_list, lx_list)
+    step_list, up_list, uk_list, temperature_list = load_energy(case['out_file_energy'])
+    box_size_list = load_cell(case['out_file_cell'])
+    lx_list = box_size_list[:, 0]
+    sigma_list, epslion_list = calc_stress_strain(up_list, box_size_list)
 
-    fig, axes = plt.subplots(2, 2, figsize=(10, 7))
+    fig, axes = plt.subplots(2, 2, figsize=(12, 7))
     axes[0, 0].plot(step_list, up_list, color='r', label='Up')
     axes[0, 0].plot(step_list, uk_list, color='b', label='Uk')
     axes[0, 0].plot(step_list, up_list + uk_list, color='k', label='Total')
@@ -70,7 +76,8 @@ def main():
     axes[1, 0].plot(step_list, lx_list, color='b', label='Length of x')
     axes[1, 0].set_xlabel('Step')
     axes[1, 0].set_ylabel('Lx')
-    axes[1, 1].plot(lx_list, up_list, color='k')
+    # axes[1, 1].plot(lx_list, up_list, color='k')
+    axes[1, 1].plot(epslion_list, sigma_list, color='k')
     axes[1, 1].set_xlabel('Lx')
     axes[1, 1].set_ylabel('Potential Energy')
     plt.show()

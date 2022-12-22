@@ -20,17 +20,26 @@ class Driver:
         self.load_atom()
 
     def init_cell(self):
-        for icx in range(self.casedata_.n_cell_[0]):
-            for icy in range(self.casedata_.n_cell_[1]):
-                for icz in range(self.casedata_.n_cell_[2]):
+        for icx in range(-1, self.casedata_.n_cell_[0] + 1):
+            for icy in range(-1, self.casedata_.n_cell_[1] + 1):
+                for icz in range(-1, self.casedata_.n_cell_[2] + 1):
                     cell = Cell(self.casedata_)
                     cell.d1_ = np.array([self.lc_[0] * icx, self.lc_[1] * icy, self.lc_[2] * icz])
                     cell.d2_ = np.array([self.lc_[0] * (icx + 1), self.lc_[1] * (icy + 1), self.lc_[2] * (icz + 1)])
-                    self.cell_list_.append(cell)
+                    cell.cell_index_1d_ = self.get_1d_from_3d_cell_index([icx, icy, icz])
+                    cell.cell_index_3d_ = np.array([icx, icy, icz])
+                    self.cell_list_.append(cell)  # TODO: cell_indexをどうふるか（surroundingの扱い方）
+
+    def migrate_inside(self, a: Atom):
+        for i in range(3):
+            if a.r_[i] < 0:
+                a.r_[i] += self.casedata_.box_size_[i]
+            elif a.r_[i] >= self.casedata_.box_size_[i]:
+                a.r_[i] -= self.casedata_.box_size_[i]
 
     def get_cell_index_from_coord(self, coord):
         ic = (coord // self.lc_).astype(int)
-        if np.all(ic < self.casedata_.n_cell_):
+        if np.all((np.array([0, 0, 0]) <= ic) & (ic < self.casedata_.n_cell_)):
             return self.get_1d_from_3d_cell_index(ic)
         else:
             raise ValueError(f'Atom out of range: {coord}')
@@ -38,6 +47,12 @@ class Driver:
     def get_1d_from_3d_cell_index(self, ic3):
         ic1 = ic3[0] * self.casedata_.n_cell_[1] * self.casedata_.n_cell_[2] + ic3[1] * self.casedata_.n_cell_[2] + ic3[2]
         return ic1
+
+    def get_3d_from_1d_cell_index(self, ic1):
+        icx = ic1 // (self.casedata_.n_cell_[1] * self.casedata_.n_cell_[2])
+        icy = (ic1 - icx * (self.casedata_.n_cell_[1] * self.casedata_.n_cell_[2])) // self.casedata_.n_cell_[2]
+        icz = ic1 % self.casedata_.n_cell_[2]
+        return np.array([icx, icy, icz]).astype(int)
 
     def load_atom(self):
         # restartのとき
@@ -47,18 +62,16 @@ class Driver:
             with open(self.casedata_.restart_file_, 'r') as f:
                 for i, line in enumerate(f):
                     line.strip('\n')
-                    if i == 0:
+                    if i == 0:  # 前回のステップ数が記録されている
                         self.current_step_ = int(line.split()[-1])
                         self.casedata_.n_loop_ += self.current_step_
                         continue
                     kind, x, y, z, vx, vy, vz = line.split()
                     a = Atom(kind, [x, y, z], [vx, vy, vz])
+                    self.migrate_inside(a)  # restartの場合、marginにある原子をmigrateしておく必要がある
                     ic = self.get_cell_index_from_coord(a.r_)
                     self.cell_list_[ic].add_atom(a)
-                    # atom_list.append(a)
                     self.n_atoms_ += 1
-            with open(self.casedata_.restart_file_, 'w') as f:
-                pass
             
         else:
             with open(self.casedata_.in_file_, 'r') as f:
@@ -69,6 +82,9 @@ class Driver:
                     ic = self.get_cell_index_from_coord(a.r_)
                     self.cell_list_[ic].add_atom(a)
                     self.n_atoms_ += 1
+
+        with open(self.casedata_.restart_file_, 'w'):
+            pass
 
     def run(self):
         for _ in tqdm(range(self.casedata_.n_loop_ - self.current_step_)):
@@ -87,7 +103,7 @@ class Driver:
         self.calc_force()
         self.update_velocity_half()
         self.update_position()
-        self.migrate()
+        self.migrate_and_reflect()
         self.calc_force()
         self.update_velocity_half()
         if self.casedata_.relax_:
@@ -99,13 +115,17 @@ class Driver:
         self.calc_force()
         self.update_velocity_half()
         self.update_position()
-        self.migrate()
+        self.migrate_and_reflect()
         self.calc_force_and_up()
         self.update_velocity_half_and_calc_uk()
         if self.casedata_.relax_:
             self.relax()
         if self.casedata_.need_stretch_:
             self.stretch()
+
+    def copy_to_surrounding(self):
+        # TODO: IMPLEMENT ME
+        pass
 
     def calc_force(self):
         for cell in self.cell_list_:
@@ -135,26 +155,30 @@ class Driver:
         for cell in self.cell_list_:
             cell.update_position()
 
-    def migrate(self):
+    def migrate_and_reflect(self):
         for cell in self.cell_list_:
-            cell.migrate()
+            cell.migrate_and_reflect()
 
     def relax(self):
         for cell in self.cell_list_:
             cell.relax()
 
     def stretch(self):
-        # TODO: 全セルでのrelaxを計算し判定
-        pass
-        # self.counter_ += 1
-        # if self.counter_ < 50:  # ある程度時間が経たないと速度が出ず、緩和したかどうか判定できない
-        #     return
-        # if self.cell_.is_relaxed():
-        #     new_box_size = self.casedata_.box_size_ * self.casedata_.stretch_eps_
-        #     # print('%05d (%03d) %.03e -> %.03e' % (self.current_step_, self.counter_, self.casedata_.box_size_[0], new_box_size[0]))
-        #     self.casedata_.set_box_size(new_box_size)
-        #     self.cell_.stretch()
-        #     self.counter_ = 0
+        self.counter_ += 1
+        if self.counter_ < 50:  # ある程度時間が経たないと速度が出ず、緩和したかどうか判定できない
+            return
+        avg_vel = 0
+        for cell in self.cell_list_:
+            avg_vel += cell.get_sum_vel()
+        avg_vel /= self.n_atoms_
+
+        if avg_vel < 1:  # well relaxed
+            new_box_size = self.casedata_.box_size_ * self.casedata_.stretch_eps_
+            print('%05d (%03d) %.03e -> %.03e' % (self.current_step_, self.counter_, self.casedata_.box_size_[0], new_box_size[0]))
+            self.casedata_.set_box_size(new_box_size)
+            for cell in self.cell_list_:
+                cell.stretch()
+            self.counter_ = 0
 
     def write_trajectory(self):
         trajectory_str = ''
@@ -203,10 +227,15 @@ def test_periodic(dr: Driver):
 
 
 def main():
-    casedata = CaseData('./data/case0.json')
+    casedata = CaseData('./data/case2.json')
     dr = Driver(casedata)
-    test_periodic(dr)
-
+    # test_periodic(dr)
+    print(dr.get_1d_from_3d_cell_index([0, 0, 0]))
+    print(dr.get_1d_from_3d_cell_index([0, 0, 1]))
+    print(dr.get_1d_from_3d_cell_index([0, 1, 1]))
+    print(dr.get_1d_from_3d_cell_index([1, 1, 1]))
+    for i in range(60):
+        print(dr.get_3d_from_1d_cell_index(i))
 
 if __name__ == '__main__':
     main()

@@ -10,6 +10,8 @@ class Cell:
         self.casedata_ = casedata
         self.d1_ = np.array([0, 0, 0])
         self.d2_ = np.array([0, 0, 0])
+        self.cell_index_1d_ = 0
+        self.cell_index_3d_ = np.array([0, 0, 0])
         self.atom_list_ = []
         self.n_atoms_ = 0
         self.up_ = self.uk_ = 0
@@ -94,31 +96,29 @@ class Cell:
         for atom in self.atom_list_:
             atom.r_ += atom.v_ * self.casedata_.dt_
 
-    def migrate(self):
+    def migrate_and_reflect(self):
         for atom in self.atom_list_:
             for i in range(3):
-                if not self.casedata_.periodic_[i]:
-                    continue
-                if atom.r_[i] < self.d1_[i] - self.casedata_.margin_[i]:
-                    atom.r_[i] += self.d2_[i] - self.d1_[i]
-                elif atom.r_[i] >= self.d2_[i] + self.casedata_.margin_[i]:
-                    atom.r_[i] -= self.d2_[i] - self.d1_[i]
+                if self.casedata_.periodic_[i]:  # migrate
+                    if atom.r_[i] < self.d1_[i] - self.casedata_.margin_[i]:
+                        atom.r_[i] += self.d2_[i] - self.d1_[i]
+                    elif atom.r_[i] >= self.d2_[i] + self.casedata_.margin_[i]:
+                        atom.r_[i] -= self.d2_[i] - self.d1_[i]
+                else:  # reflect
+                    if atom.r_[i] < self.d1_[i]:
+                        atom.v_[i] *= -1
+                        atom.r_[i] = 2 * self.d1_[i] - atom.r_[i]
+                    if atom.r_[i] >= self.d2_[i]:
+                        atom.v_[i] *= -1
+                        atom.r_[i] = 2 * self.d2_[i] - atom.r_[i]
 
     def relax(self):
         for atom in self.atom_list_:
             if np.dot(atom.v_, atom.a_) < 0:
                 atom.v_ = np.zeros(3).astype(float)
 
-    def is_relaxed(self):
-        avg_vel = 0
-        for atom in self.atom_list_:
-            avg_vel += np.linalg.norm(atom.v_)
-        avg_vel /= self.n_atoms_
-
-        if avg_vel < 1:  # 閾値は適切か？
-            return True
-        else:
-            return False
+    def get_sum_vel(self):
+        return sum([np.linalg.norm(atom.v_) for atom in self.atom_list_])
 
     def update_box_size(self):
         self.d1_ = np.array([0, 0, 0])
@@ -142,67 +142,8 @@ class Cell:
         return restart_str
 
 
-def test_clear_force(cell: Cell):
-    cell.calc_force()
-    for atom in cell.atom_list_:
-        if np.linalg.norm(atom.a_) == 0:
-            print(f'Failed in {inspect.currentframe().f_code.co_name}. There are some isolated atoms.')
-            return
-    cell.clear_force()
-    for atom in cell.atom_list_:
-        if np.linalg.norm(atom.a_) != 0:
-            print(f'Failed in {inspect.currentframe().f_code.co_name}. clear_force() is not properly working.')
-            return
-    print(f'Succeed in {inspect.currentframe().f_code.co_name}')
-
-
-def test_calc_force_and_up(cell: Cell):
-    cell.calc_force_and_up()
-
-
-def test_calc_force_and_up_with_surrounding():
-    casedata = CaseData('./data/case0.json')
-    atom_list = [
-        Atom('Al', [0, 0, 0], [-100, 0, 0]),
-        Atom('Al', [0, 8e-10, 0], [0, 0, 0]),
-        Atom('Al', [0, 0, 4e-10], [0, 0, 0]),
-    ]
-    cell = Cell(casedata, atom_list)
-
-
-def update_velocity_half_and_calc_uk(cell: Cell):
-    pass
-
-
-def test_update_position(cell: Cell):
-    pass
-
-
-def test_migrate():
-    print('Testing migration: ', end='')
-    casedata = CaseData('./data/case0.json')
-    atom_list = [
-        Atom('Al', [0, 0, 0], [-1000, 0, 0])
-    ]
-    cell = Cell(casedata, atom_list)
-    for _ in range(10):
-        print(cell.atom_list_[0].r_[0], end=', ')
-        cell.update_position()
-        cell.migrate()
-    print('...')
-
-
 def main():
-    casedata = CaseData('./data/case0.json')
-    atom_list = [
-        Atom('Al', [0, 0, 0], [-100, 0, 0]),
-        Atom('Al', [0, 4e-10, 0], [0, 0, 0]),
-        Atom('Al', [0, 0, 4e-10], [0, 0, 0]),
-    ]
-    cell = Cell(casedata, atom_list)
-    test_clear_force(cell)
-    test_calc_force_and_up_with_surrounding()
-    test_migrate()
+    pass
 
 
 if __name__ == '__main__':
